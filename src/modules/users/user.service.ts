@@ -7,6 +7,10 @@ import {
   RoleType,
   FlagType,
   logoutSchemaType,
+  ProviderType,
+  loginWithGmailSchemaType,
+  forgetPasswordSchemaType,
+  resetPasswordSchemaType,
 } from "../../utils/interfaces";
 import userModel from "../../DB/model/user.model";
 import revokeTokenModel from "../../DB/model/revoke.model";
@@ -15,9 +19,9 @@ import { UserRepository } from "../../DB/repositories/user.repository";
 import { Compare, Hash } from "../../utils/hash";
 import { eventEmitter } from "../../utils/event";
 import { generateOTP } from "../../service/sendEmail";
-import { generateToken } from "../../utils/token";
-import { uuidv4 } from "zod";
+import { v4 as uuidv4 } from "uuid";
 import { RevokeTokenRepository } from "../../DB/repositories/revokeToken.repository";
+import { OAuth2Client, TokenPayload } from "google-auth-library";
 
 class UserService {
   // private _userModel: Model<IUser> = userModel;
@@ -85,7 +89,11 @@ class UserService {
   login = async (req: Request, res: Response, next: NextFunction) => {
     const { email, password }: loginSchemaType = req.body;
 
-    const user = await this._userModel.findOne({ email, confirmed: true });
+    const user = await this._userModel.findOne({
+      email,
+      confirmed: { $exists: true },
+      provider: ProviderType.system,
+    });
 
     if (!user) {
       throw new AppError("email is not found or not confirmed yet", 404);
@@ -153,10 +161,8 @@ class UserService {
   refreshToken = async (req: Request, res: Response, next: NextFunction) => {
     const jwtid = uuidv4();
 
-    const jwtid = uuidv4();
-
     const accessToken = await generateToken({
-      payload: { id: req?.user._id, email: req?.user.email },
+      payload: { id: req?.user!._id, email: req?.user!.email },
       signature:
         req?.user?.role == RoleType.user
           ? process.env.SIGNATURE_USER_TOKEN!
@@ -167,7 +173,7 @@ class UserService {
       },
     });
     const refreshToken = await generateToken({
-      payload: { id: req?.user._id, email: req?.user.email },
+      payload: { id: req?.user!._id, email: req?.user!.email },
       signature:
         req?.user?.role == RoleType.user
           ? process.env.REFRESH_SIGNATURE_USER_TOKEN!
@@ -184,8 +190,115 @@ class UserService {
       expiresAt: new Date(req.decoded?.exp! * 1000),
     });
 
+    return res
+      .status(200)
+      .json({ message: "success refresh token", accessToken, refreshToken });
+  };
 
-    return res.status(200).json({ message: "success refresh token", accessToken, refreshToken });
+  loginWithGmail = async (req: Request, res: Response, next: NextFunction) => {
+    const { idToken }: loginWithGmailSchemaType = req.body;
+
+    const client = new OAuth2Client();
+    async function verify() {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.WEB_CLIENT_ID!,
+      });
+      const payload = ticket.getPayload();
+      return payload;
+    }
+    const { email, email_verified, picture, name } =
+      (await verify()) as TokenPayload;
+
+    let user = await this._userModel.findOne({ email });
+    if (!user) {
+      user = await this._userModel.create({
+        userName: name!,
+        email: email!,
+        confirmed: email_verified!,
+        image: picture!,
+        provider: ProviderType.google,
+      });
+    }
+
+    if (user?.provider !== ProviderType.google) {
+      throw new Error("please login on system");
+    }
+
+    const jwtid = uuidv4();
+
+    const accessToken = await generateToken({
+      payload: { id: user._id, email: user.email },
+      signature:
+        user?.role == RoleType.user
+          ? process.env.SIGNATURE_USER_TOKEN!
+          : process.env.SIGNATURE_ADMIN_TOKEN!,
+      options: {
+        expiresIn: "2h",
+        jwtid,
+      },
+    });
+    const refreshToken = await generateToken({
+      payload: { id: user._id, email: user.email },
+      signature:
+        user?.role == RoleType.user
+          ? process.env.REFRESH_SIGNATURE_USER_TOKEN!
+          : process.env.REFRESH_SIGNATURE_ADMIN_TOKEN!,
+      options: {
+        expiresIn: "1y",
+        jwtid,
+      },
+    });
+
+    return res
+      .status(200)
+      .json({ message: "success", accessToken, refreshToken });
+  };
+
+  forgetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    const { email }: forgetPasswordSchemaType = req.body;
+
+    const user = await this._userModel.findOne({
+      email,
+      confirmed: { $exists: true },
+    });
+    if (!user) {
+      throw new AppError("email not found or not confirmed yet", 404);
+    }
+
+    const otp = await generateOTP();
+    const hashOTP = await Hash(String(otp));
+
+    eventEmitter.emit("ForgetPassword", { email, otp });
+
+    await this._userModel.updateOne({ email: user?.email }, { otp: hashOTP });
+
+    return res.status(200).json({ message: "success send otp" });
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    const { email, otp, password, cPassword }: resetPasswordSchemaType =
+      req.body;
+
+    const user = await this._userModel.findOne({
+      email,
+      otp: { $exists: true },
+    });
+    if (!user) {
+      throw new AppError("email not found or not confirmed yet", 404);
+    }
+    if (!(await Compare(otp, user?.otp!))) {
+      throw new AppError("invalid otp", 400);
+    }
+
+    const hash = await Hash(password);
+
+    await this._userModel.updateOne(
+      { email: user?.email },
+      { password: hash, $unset: { otp: "" } }
+    );
+
+    return res.status(200).json({ message: "success reset password" });
   };
 }
 

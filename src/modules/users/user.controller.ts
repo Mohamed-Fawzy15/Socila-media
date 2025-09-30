@@ -6,6 +6,9 @@ import {
   signUpSchema,
   confrimEmailSchema,
   logoutSchema,
+  loginWithGmailSchema,
+  forgetPasswordSchema,
+  loginSchema,
 } from "./user.validation";
 import { TokenType } from "../../utils/interfaces";
 
@@ -25,6 +28,25 @@ userRouter.post(
   validation(logoutSchema),
   US.logout
 );
-userRouter.get("/refreshToken", Authentication(TokenType.refresh), US.refreshToken);
+userRouter.get(
+  "/refreshToken",
+  Authentication(TokenType.refresh),
+  US.refreshToken
+);
+userRouter.get(
+  "/loginWithGoogle",
+  validation(loginWithGmailSchema),
+  US.loginWithGoogle
+);
+userRouter.get(
+  "/forgetPassword",
+  validation(forgetPasswordSchema),
+  US.forgetPassword
+);
+userRouter.get(
+  "/resetPassword",
+  validation(resetPasswordSchema),
+  US.resetPassword
+);
 
 export default userRouter;

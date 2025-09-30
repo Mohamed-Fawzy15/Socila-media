@@ -58,3 +58,34 @@ export const logoutSchema = {
     })
     .required(),
 };
+
+export const loginWithGmailSchema = {
+  body: z
+    .object({
+      idToken: z.string(),
+    })
+    .required(),
+};
+
+export const forgetPasswordSchema = {
+  body: z
+    .strictObject({
+      email: z.email(),
+    })
+    .required(),
+};
+
+export const resetPasswordSchema = {
+  body: confrimEmailSchema.body.extend({
+    password: z.string().regex(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}/),
+    cPassword: z.string(),
+  }).required().superRefine((value, ctx) =>{
+    if(value.password !== value.cPassword){
+      ctx.addIssue({
+        code: "custom",
+        path: ["cPassword"],
+        message: "password not match",
+      });
+    }
+  });
+};

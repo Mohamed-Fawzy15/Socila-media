@@ -4,14 +4,11 @@ import {
   logoutSchema,
   loginSchema,
   signUpSchema,
+  loginWithGmailSchema,
+  forgetPasswordSchema,
 } from "../modules/users/user.validation";
 import z from "zod";
 import { JwtPayload } from "jsonwebtoken";
-
-export type signUpSchemaType = z.infer<typeof signUpSchema.body>;
-export type confirmEmailSchemaType = z.infer<typeof confrimEmailSchema.body>;
-export type loginSchemaType = z.infer<typeof loginSchema.body>;
-export type logoutSchemaType = z.infer<typeof logoutSchema.body>;
 
 export enum GenderType {
   male = "male",
@@ -39,6 +36,10 @@ export interface IUser {
   createdAt: Date;
   updatedAt: Date;
   changeCredntials?: Date;
+  otp?: string;
+  image?: string;
+  provider?: ProviderType;
+  deletedAt?: Date;
 }
 
 export enum TokenType {
@@ -63,3 +64,20 @@ export enum FlagType {
   all = "all",
   current = "current",
 }
+
+export enum ProviderType {
+  system = "system",
+  google = "google",
+}
+
+export type signUpSchemaType = z.infer<typeof signUpSchema.body>;
+export type confirmEmailSchemaType = z.infer<typeof confrimEmailSchema.body>;
+export type loginSchemaType = z.infer<typeof loginSchema.body>;
+export type logoutSchemaType = z.infer<typeof logoutSchema.body>;
+export type forgetPasswordSchemaType = z.infer<
+  typeof forgetPasswordSchema.body
+>;
+export type resetPasswordSchemaType = z.infer<typeof resetPasswordSchema.body>;
+export type loginWithGmailSchemaType = z.infer<
+  typeof loginWithGmailSchema.body
+>;
