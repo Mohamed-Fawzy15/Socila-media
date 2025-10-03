@@ -76,7 +76,8 @@ export const forgetPasswordSchema = {
 };
 
 export const resetPasswordSchema = {
-  body: confrimEmailSchema.body.extend({
+  body: z
+  .strictObject({
     password: z.string().regex(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}/),
     cPassword: z.string(),
   }).required().superRefine((value, ctx) =>{
@@ -88,4 +89,15 @@ export const resetPasswordSchema = {
       });
     }
   });
+};
+
+export const freezeSchema = {
+  params: confrimEmailSchema.body.extend({
+    userId: z.string().optional(),
+  }).required().refine((value) => {
+    return value?.userId ? Types.ObjectId.isValid(value.userId) : true
+  },{
+    message: "userId is required",
+    path: ["userId"]
+  })
 };

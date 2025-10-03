@@ -1,3 +1,4 @@
+import { multerCloud, fileValidation } from "./../../middleware/multer.cloud";
 import { Router } from "express";
 import US from "./user.service";
 import { validation } from "../../middleware/validation";
@@ -9,6 +10,7 @@ import {
   loginWithGmailSchema,
   forgetPasswordSchema,
   loginSchema,
+  freezeSchema,
 } from "./user.validation";
 import { TokenType } from "../../utils/interfaces";
 
@@ -33,20 +35,52 @@ userRouter.get(
   Authentication(TokenType.refresh),
   US.refreshToken
 );
-userRouter.get(
+userRouter.post(
   "/loginWithGoogle",
   validation(loginWithGmailSchema),
   US.loginWithGoogle
 );
-userRouter.get(
+userRouter.patch(
   "/forgetPassword",
   validation(forgetPasswordSchema),
   US.forgetPassword
 );
-userRouter.get(
+userRouter.patch(
   "/resetPassword",
   validation(resetPasswordSchema),
   US.resetPassword
+);
+userRouter.post(
+  "/upload",
+  Authentication(),
+  multerCloud({ fileTypes: fileValidation.image }).single("file"),
+  US.uploadImage
+);
+userRouter.post(
+  "/uploadLargeFile",
+  Authentication(),
+  multerCloud({ fileTypes: fileValidation.image }).single("file"),
+  US.uploadLarge
+);
+userRouter.post(
+  "/uploadMulti",
+  Authentication(),
+  multerCloud({ fileTypes: fileValidation.image }).array("files"),
+  US.uploadMultipleFiles
+);
+userRouter.post("/uploadFilePresignedUrl", Authentication(), US.uploadFile);
+userRouter.post("/uploadProfileImage", Authentication(), US.uploadProfileImage);
+userRouter.delete(
+  "/freeze{/:userId}",
+  Authentication(TokenType.access),
+  validation(freezeSchema),
+  US.freezeAccount
+);
+userRouter.delete(
+  "/unfreeze/:userId",
+  Authentication(TokenType.access),
+  validation(freezeSchema),
+  US.unFreezeAccount
 );
 
 export default userRouter;

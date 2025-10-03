@@ -6,9 +6,13 @@ import {
   signUpSchema,
   loginWithGmailSchema,
   forgetPasswordSchema,
+  resetPasswordSchema,
+  freezeSchema,
 } from "../modules/users/user.validation";
 import z from "zod";
 import { JwtPayload } from "jsonwebtoken";
+import { Schema } from "mongoose";
+import { likePostSchema } from "../modules/posts/post.validation";
 
 export enum GenderType {
   male = "male",
@@ -30,6 +34,9 @@ export interface IUser {
   age: number;
   phone?: string;
   address?: string;
+  profileImage?: string;
+  tempProfileImage?: string;
+  coverImage?: string;
   confirmed?: boolean;
   gender: GenderType;
   role?: RoleType;
@@ -40,6 +47,12 @@ export interface IUser {
   image?: string;
   provider?: ProviderType;
   deletedAt?: Date;
+  deletedBy?: Types.ObjectId;
+  restoredAt?: Date;
+  restoredBy?: Types.ObjectId;
+  freezeAt?: Date;
+  freezeBy?: Types.ObjectId;
+  friends?: Types.ObjectId[];
 }
 
 export enum TokenType {
@@ -70,6 +83,12 @@ export enum ProviderType {
   google = "google",
 }
 
+export enum StorageEnum {
+  disk = "disk",
+  cloud = "cloud",
+}
+
+// user
 export type signUpSchemaType = z.infer<typeof signUpSchema.body>;
 export type confirmEmailSchemaType = z.infer<typeof confrimEmailSchema.body>;
 export type loginSchemaType = z.infer<typeof loginSchema.body>;
@@ -81,3 +100,40 @@ export type resetPasswordSchemaType = z.infer<typeof resetPasswordSchema.body>;
 export type loginWithGmailSchemaType = z.infer<
   typeof loginWithGmailSchema.body
 >;
+export type freezeSchemaType = z.infer<typeof freezeSchema.params>;
+
+// posts
+
+export enum AllowCommentEnum {
+  allow = "allow",
+  deny = "deny",
+}
+
+export enum AvailabilityEnum {
+  public = "public",
+  private = "private",
+  friends = "friends",
+}
+
+export enum ActionEnum {
+  like = "like",
+  unlike = "unlike",
+}
+
+export interface IPost {
+  content?: string;
+  attachments?: string[];
+  assetFolderId?: string;
+  createdBy: Schema.Types.ObjectId;
+  tags: Schema.Types.ObjectId[];
+  likes: Schema.Types.ObjectId[];
+  allowComment: AllowCommentEnum;
+  availability: AvailabilityEnum;
+  deletedAt?: Date;
+  deleteBy?: Schema.Types.ObjectId;
+  restoredAt?: Date;
+  restoredBy?: Schema.Types.ObjectId;
+}
+
+export type likePostDto = z.infer<typeof likePostSchema.params>;
+export type likePostQueryDto = z.infer<typeof likePostSchema.params>;

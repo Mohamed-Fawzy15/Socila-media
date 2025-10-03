@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import {
   GenderType,
   IUser,
@@ -78,6 +78,25 @@ const userSchema = new mongoose.Schema<IUser>(
     deletedAt: {
       type: Date,
     },
+    deletedBy:{
+      type: Types.ObjectId, ref:"User"
+    },
+    restoredAt: {
+      type: Date,
+    },
+    restoredBy:{
+      type: Types.ObjectId, ref:"User"
+    },
+    profileImage: {
+      type: String,
+    },
+    tempProfileImage: {
+      type: String,
+    },
+    friends: [{
+      type: Types.ObjectId,
+      ref: "User"
+    }]
   },
   {
     timestamps: true,
@@ -116,10 +135,10 @@ userSchema.post("save", async function () {
 userSchema.pre(["findOne", "updateOne"], async function () {
   const query = this.getQuery();
   const { paranoid, ...rest } = query;
-  if(paranoid == false){
-    this.setQuery({...rest});
-  }else{
-    this.setQuery({...rest, deletedAt: { $exists: false }});
+  if (paranoid == false) {
+    this.setQuery({ ...rest });
+  } else {
+    this.setQuery({ ...rest, deletedAt: { $exists: false } });
   }
 });
 

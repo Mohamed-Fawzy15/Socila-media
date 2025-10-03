@@ -1,4 +1,12 @@
-import { HydratedDocument, Model, RootFilterQuery } from "mongoose";
+import {
+  HydratedDocument,
+  Model,
+  RootFilterQuery,
+  UpdateQuery,
+  UpdateWriteOpResult,
+  QueryOptions,
+  DeleteResult,
+} from "mongoose";
 import { AppError } from "../../utils/classError";
 import { ProjectionType } from "mongoose";
 
@@ -13,10 +21,33 @@ export abstract class DbRepository<TDocument> {
     filter: RootFilterQuery<TDocument>,
     select?: ProjectionType<TDocument>
   ): Promise<HydratedDocument<TDocument> | null> {
-    return this.model.findOne(filter);
+    return this.model.findOne(filter, select);
   }
 
-  async updateOne(filter:RootFilterQuery<TDocument>, update: UpdateQurey<TDocument>): Promise<UpdateWriteOptions>{
-    return await this.model.updateOne(filter,update)
+  async find(
+    filter: RootFilterQuery<TDocument>,
+    select?: ProjectionType<TDocument>,
+    options?: QueryOptions<TDocument>
+  ): Promise<HydratedDocument<TDocument>[]> {
+    return this.model.find(filter, select, options);
+  }
+
+  async updateOne(
+    filter: RootFilterQuery<TDocument>,
+    update: UpdateQuery<TDocument>
+  ): Promise<UpdateWriteOpResult> {
+    return await this.model.updateOne(filter, update);
+  }
+
+  async findOneAndUpdate(
+    filter: RootFilterQuery<TDocument>,
+    update: UpdateQuery<TDocument>,
+    options: QueryOptions<TDocument> | null = { new: true }
+  ): Promise<HydratedDocument<TDocument> | null> {
+    return await this.model.findOneAndUpdate(filter, update, options);
+  }
+
+  async deleteOne(filter: RootFilterQuery<TDocument>): Promise<DeleteResult> {
+    return await this.model.deleteOne(filter);
   }
 }
