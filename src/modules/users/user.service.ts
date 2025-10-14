@@ -12,9 +12,13 @@ import {
   forgetPasswordSchemaType,
   resetPasswordSchemaType,
   StorageEnum,
-  freezeSchemaType
+  freezeSchemaType,
 } from "../../utils/interfaces";
 import userModel from "../../DB/model/user.model";
+import postModel from "../../DB/model/post.model";
+import friendRequestModel from "../../DB/model/friendRequest.model";
+import { FriendRequestRepository } from "../../DB/repositories/friendRequest.repository";
+import { PostRepository } from "../../DB/repositories/post.repository";
 import revokeTokenModel from "../../DB/model/revoke.model";
 import { AppError } from "../../utils/classError";
 import { UserRepository } from "../../DB/repositories/user.repository";
@@ -32,11 +36,16 @@ import {
   createUploadFilePresignedUrl,
 } from "../../utils/s3.config";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { ChatRepository } from "../../DB/repositories/chat.repository";
+import chatModel from "../../DB/model/chat.model";
 
 class UserService {
   // private _userModel: Model<IUser> = userModel;
   private _userModel = new UserRepository(userModel);
+  private _postModel = new PostRepository(postModel);
   private _revokeTokenModel = new RevokeTokenRepository(revokeTokenModel);
+  private _friendRequestModel = new FriendRequestRepository(friendRequestModel);
+  private _chatModel = new ChatRepository(chatModel);
 
   signup = async (req: Request, res: Response, next: NextFunction) => {
     const {
@@ -144,7 +153,14 @@ class UserService {
   };
 
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
-    return res.status(200).json({ message: "success", user: req.user });
+    const user = await this._userModel.findOne({_id: req.user?._id}, undefined)
+    const groups = await this._chatModel.find({
+      filter: {
+        partiacipants: { $in: [req.user?._id] },
+        group: { $exists: true },
+      }
+    })
+    return res.status(200).json({ message: "success", user, groups });
   };
 
   logout = async (req: Request, res: Response, next: NextFunction) => {
@@ -392,11 +408,17 @@ class UserService {
     }
 
     const user = await this._userModel.findOneAndUpdate(
-      { _id: userId || req.user?._id, deletedAt: {$exist: false}},
-      { $set: { deletedAt: new Date(), deletedBy: req.user?._id, changeCredntials: new Date()} }
+      { _id: userId || req.user?._id, deletedAt: { $exist: false } },
+      {
+        $set: {
+          deletedAt: new Date(),
+          deletedBy: req.user?._id,
+          changeCredntials: new Date(),
+        },
+      }
     );
 
-    if(!user){
+    if (!user) {
       throw new AppError("user not found", 404);
     }
 
@@ -404,27 +426,134 @@ class UserService {
   };
 
   unFreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
-    const { userId } = req.params ;
+    const { userId } = req.params;
 
     if (req.user?.role !== RoleType.admin) {
       throw new AppError("unauthorized", 401);
     }
 
     const user = await this._userModel.findOneAndUpdate(
-      { _id: userId , deletedAt: {$exist: true}, deletedBy: {$ne: userId}},
+      { _id: userId, deletedAt: { $exist: true }, deletedBy: { $ne: userId } },
       {
-        $unset: {deletedAt: "", deletedBy: ""},
+        $unset: { deletedAt: "", deletedBy: "" },
         restoredAt: new Date(),
         restoredBy: req.user?._id,
       }
     );
 
-    if(!user){
+    if (!user) {
       throw new AppError("user not found", 404);
     }
 
     return res.status(200).json({ message: "freezed" });
   };
+
+  dashboard = async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await Promise.allSettled([
+      this._userModel.find({ filter: {} })
+      this._postModel.find({ filter: {} })
+    ])
+
+    return res.status(200).json({ message: "success", result});
+  };
+
+  updateRole = async (req: Request, res: Response, next: NextFunction) => {
+
+    const {userId} = req.params;
+    const {role: newRole} = req.body;
+
+    const denyRoles : RoleType[] = [newRole, RoleType.superAdmin];
+
+    if(req.user?.role == RoleType.admin){
+      denyRoles.push(RoleType.admin)
+      if(newRole == RoleType.superAdmin){
+        denyRoles.push(RoleType.user)
+        // throw new AppError("unauthorized", 403)
+      }
+    }
+
+    const user = await this._userModel.findOneAndUpdate({
+      _id:userId,
+      role: {$nin: denyRoles}
+    },
+  {
+    role: newRole
+  }, {
+    new: true
+  })
+
+  if(!user){
+    throw new AppError("user Not Found", 404)
+  }
+
+    return res.status(200).json({ message: "success", user});
+  };
+
+   sendRequest = async (req: Request, res: Response, next: NextFunction) => {
+
+   const { userId } = req.params;
+
+    const user = await this._userModel.findOne({_id:userId})
+
+  if(!user){
+    throw new AppError("user Not Found", 404)
+  }
+
+  if(req.user?._id == userId){
+    throw new AppError("you can't send a request to yourself!", 400)
+  }
+
+  const checkRequest = await this._friendRequestModel.findOne({
+    createdBy: { $in: [req.user?._id, userId] },
+    sendTo: {$in: [req.user?._id, userId]}
+  })
+
+  if(checkRequest){
+    throw new AppError("request already send", 400)
+  }
+
+  const friendRequest = await _friendRequestModel.create({
+    createdBy: req.user?._id as unknown as Types.ObjectId,
+    sendTo: userId
+  })
+
+
+
+    return res.status(200).json({ message: "success", friendRequest});
+  };
+
+
+  acceptRequest = async (req: Request, res: Response, next: NextFunction) => {
+
+   const { requestId } = req.params;
+
+
+
+  const checkRequest = await this._friendRequestModel.findOneAndUpdate({
+    _id: requestId,
+    sendTo: req.user?._id
+  },{
+    acceptedAt: new Date()
+  },{
+    new: true
+  })
+
+  if(checkRequest){
+    throw new AppError("request already send", 400)
+  }
+
+
+  await Promise.all([
+    this._userModel.updateOne({_id:checkRequest?.createdBy}, {$push:{friends:checkRequest.sendTo}}),
+    this._userModel.updateOne({_id:checkRequest?.sendTo}, {$push:{friends:checkRequest.createdBy}}),
+
+  ])
+
+
+    return res.status(200).json({ message: "friend request accepted"});
+  };
+
 }
 
 export default new UserService();

@@ -6,7 +6,9 @@ import { validation } from "../../middleware/validation";
 import { Authentication } from "../../middleware/Authentication";
 import { TokenType } from "../../utils/interfaces";
 
-const postRouter = Router();
+const postRouter = Router({ mergeParams: true });
+
+postRouter.use("/:postId/comments", commentRouter);
 
 postRouter.post(
   "/",

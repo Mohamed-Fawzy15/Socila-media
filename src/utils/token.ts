@@ -31,7 +31,10 @@ export const verifyToken = async ({
   return jwt.verify(token, signature) as JwtPayload;
 };
 
-export const GetSignature = async (tokenType: TokenType, prefix: string) => {
+export const GetSignature = async (
+  prefix: string,
+  tokenType: TokenType = TokenType.access
+) => {
   if (tokenType == TokenType.access) {
     if (prefix == process.env.BEARER_USER) {
       return process.env.SIGNATURE_USER_TOKEN;

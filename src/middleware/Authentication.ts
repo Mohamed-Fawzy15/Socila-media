@@ -12,18 +12,15 @@ export const authentication = (tokenType: TokenType = TokenType.access) => {
       throw new AppError("token not found", 404);
     }
 
-    const signature = await GetSignature(tokenType, prefix);
+    const signature = await GetSignature(prefix, tokenType);
     if (!signature) {
       throw new AppError("invalid signature", 400);
     }
 
-    const decoded = await decodedTokenAndFetchUser(token, signature);
-    if (!decoded) {
-      throw new AppError("Invalid token decode", 400);
-    }
+    const { user, decoded } = await decodedTokenAndFetchUser(token, signature);
 
-    req.user = decoded?.user;
-    req.decoded = decoded?.decoded;
+    req.user = user;
+    req.decoded = decoded;
 
     return next();
   };

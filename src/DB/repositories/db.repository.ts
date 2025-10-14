@@ -19,9 +19,10 @@ export abstract class DbRepository<TDocument> {
 
   async findOne(
     filter: RootFilterQuery<TDocument>,
-    select?: ProjectionType<TDocument>
+    projection?: ProjectionType<TDocument>,
+    options?: QueryOptions<TDocument>
   ): Promise<HydratedDocument<TDocument> | null> {
-    return this.model.findOne(filter, select);
+    return this.model.findOne(filter, projection, options);
   }
 
   async find(
@@ -50,4 +51,34 @@ export abstract class DbRepository<TDocument> {
   async deleteOne(filter: RootFilterQuery<TDocument>): Promise<DeleteResult> {
     return await this.model.deleteOne(filter);
   }
+
+  // async paginate({
+  //   filter,
+  //   projection,
+  //   options,
+  //   query,
+  // }: {
+  //   filter: RootFilterQuery<TDocument>;
+  //   projection?: ProjectionType<TDocument>;
+  //   options?: QueryOptions<TDocument>;
+  //   query: { page: number; limit: number };
+  // }): Promise<HydratedDocument<TDocument>[]> {
+  //   let { page, limit } = query;
+  //   if (page < 0) page = 1;
+  //   page = page * 1 || 1;
+  //   limit = limit * 1 || 5;
+
+  //   const skip = (page - 1) * limit;
+
+  //   const finalOptions = {
+  //     ...(options || {}),
+  //     skip,
+  //     limit,
+  //   };
+
+  //   const countDoc = await this.model.countDocuments({deletedAt: {$exists: false}});
+  //   const totalPages = Math.ceil(countDoc / limit);
+  //   const result = await this.model.find(filter, projection, finalOptions);
+  //   return { result, currentPage: page, countDoc, totalPages };
+  // }
 }

@@ -13,6 +13,7 @@ import z from "zod";
 import { JwtPayload } from "jsonwebtoken";
 import { Schema } from "mongoose";
 import { likePostSchema } from "../modules/posts/post.validation";
+import { Socket } from "socket.io";
 
 export enum GenderType {
   male = "male",
@@ -22,6 +23,7 @@ export enum GenderType {
 export enum RoleType {
   user = "user",
   admin = "admin",
+  superAdmin = "superAdmin",
 }
 
 export interface IUser {
@@ -137,3 +139,52 @@ export interface IPost {
 
 export type likePostDto = z.infer<typeof likePostSchema.params>;
 export type likePostQueryDto = z.infer<typeof likePostSchema.params>;
+
+// comment
+
+export interface IComment {
+  content?: string;
+  attachments?: string[];
+  assetFolderId?: string;
+  likes?: Types.ObjectId[];
+  tags?: Types.ObjectId[];
+  createdBy: Types.ObjectId;
+  postId: Types.ObjectId;
+  deletedAt?: Date;
+  deletedBy?: Types.ObjectId;
+  restoredAt?: Date;
+  restoredBy?: Types.ObjectId;
+}
+
+export interface IFriendRequest {
+  createdBy: Types.ObjectId;
+  sendTo: Types.ObjectId;
+  acceptedAt?: Date;
+}
+
+export interface SocketWithUser extends Socket {
+  user?: Partial<HydratedDocument<IUser>>;
+  decoded?: JwtPayload;
+}
+
+export interface IMessage {
+  content: string;
+  createdBy: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IChat {
+  // one to one
+  participants: Types.ObjectId[];
+  createdBy: Types.ObjectId;
+  messages: IMessage[];
+
+  // group chat
+  group?: string;
+  groupImage?: string;
+  roomId: string;
+
+  createdAt: Date;
+  updatedAt: Date;
+}

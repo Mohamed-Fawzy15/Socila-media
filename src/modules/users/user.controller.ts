@@ -3,6 +3,7 @@ import { Router } from "express";
 import US from "./user.service";
 import { validation } from "../../middleware/validation";
 import { Authentication } from "../../middleware/Authentication";
+import { Authorization } from "../../middleware/Authorization";
 import {
   signUpSchema,
   confrimEmailSchema,
@@ -13,8 +14,11 @@ import {
   freezeSchema,
 } from "./user.validation";
 import { TokenType } from "../../utils/interfaces";
+import {chatRouter} from "../chat/chat.controller"
 
 const userRouter = Router();
+
+userRouter.use("/:userId/chat", chatRouter);
 
 userRouter.post("/signup", validation(signUpSchema), US.signup);
 userRouter.patch(
@@ -82,5 +86,22 @@ userRouter.delete(
   validation(freezeSchema),
   US.unFreezeAccount
 );
+
+userRouter.get(
+  "/dashboard",
+  Authentication(),
+  Authorization({ accessRole: [RoleType.admin, RoleType.superAdmin] }),
+  US.dashboard
+);
+
+userRouter.patch(
+  "/updateRole/:userId",
+  Authentication(),
+  Authorization({ accessRole: [RoleType.admin, RoleType.superAdmin] }),
+  US.updateRole
+);
+
+userRouter.post("/sendRequest/:userId", Authentication(), US.sendRequest);
+userRouter.patch("/acceptRequest/:requestId", Authentication(), US.acceptRequest);
 
 export default userRouter;

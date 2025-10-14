@@ -18,6 +18,12 @@ import {
 } from "./utils/s3.config";
 import { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3";
 import postRouter from "./modules/posts/post.controller";
+import { Server, Socket } from "socket.io";
+import { decodedTokenAndFetchUser, GetSignature } from "./utils/token";
+import { connect } from "node:http2";
+import { SocketWithUser } from "./utils/interfaces";
+import { initilizationIo } from "./modules/geteway/gateway";
+import chatRouter from "./modules/chat/chat.controller";
 
 const writePipline = promisify(pipeline);
 
@@ -117,7 +123,7 @@ const bootstarp = async () => {
 
       const result = await getFile({ Key });
       const stream = result.Body as NodeJS.ReadableStream;
-
+      res.set("cross-origin-resource-policy", "cross-origin");
       res.setHeader("Content-Type", result?.ContentType!);
       if (downloadName) {
         res.setHeader(
@@ -134,6 +140,7 @@ const bootstarp = async () => {
 
   app.use("/users", userRouter);
   app.use("/posts", postRouter);
+  app.use("/chat", chatRouter);
 
   await connectionDB();
 
@@ -149,9 +156,11 @@ const bootstarp = async () => {
     }
   );
 
-  app.listen(port, () => {
+  const httpServer = app.listen(port, () => {
     console.log(`server is running on port ${port}`);
   });
+
+  initilizationIo(httpServer);
 };
 
 export default bootstarp;
